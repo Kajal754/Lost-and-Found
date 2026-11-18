@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                        Int      @id @default(autoincrement())
+  name                      String
+  email                     String?  @unique
+  phone                     String?  @unique
+  password                  String
+  role                      String   @default("USER")
+  profileImage              String?
+  createdAt                 DateTime @default(now())
+  emailNotifications        Boolean  @default(true)
+  messageEmailNotifications Boolean  @default(false)
+
+  // Password reset OTP fields
+  resetOtpHash       String?
+  resetOtpExpiresAt  DateTime?
+  resetOtpVerifiedAt DateTime?
+  resetOtpAttempts   Int       @default(0)
+
+  // Relations
+  lostItems        LostItem[]
+  foundItems       FoundItem[]
+  recoveryClaims   RecoveryClaim[]        @relation("RecoveryClaimant")
+  recoveryEvents   RecoveryVerification[]
+  notifications    Notification[]
+  messagesSent     Message[]              @relation("SentMessages")
+  messagesReceived Message[]              @relation("ReceivedMessages")
+}
+
+model LostItem {
+  id             Int       @id @default(autoincrement())
+  userId         Int
+  title          String
+  category       String
+  description    String?
+  location       String
+  latitude       Float?
+  longitude      Float?
+  lostDate       DateTime
+  color          String?
+  brand          String?
+  image          String?
+  images         String[]  @default([])
+  imageHashes    String[]  @default([])
+  status         String    @default("lost")
+  createdAt      DateTime  @default(now())
+  expiresAt      DateTime
+  reminderSentAt DateTime?
+  qrToken        String    @unique @default(uuid())
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matches        Match[]         @relation("LostItemMatches")
+  recoveryClaims RecoveryClaim[]
+
+  @@index([status, expiresAt])
+}
+
+model FoundItem {
+  id             Int       @id @default(autoincrement())
+  userId         Int
+  title          String
+  category       String
+  description    String?
+  location       String
+  latitude       Float?
+  longitude      Float?
+  foundDate      DateTime
+  color          String?
+  brand          String?
+  image          String?
+  images         String[]  @default([])
+  imageHashes    String[]  @default([])
+  status         String    @default("found")
+  createdAt      DateTime  @default(now())
+  expiresAt      DateTime
+  reminderSentAt DateTime?
+  qrToken        String    @unique @default(uuid())
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matches        Match[]         @relation("FoundItemMatches")
+  recoveryClaims RecoveryClaim[]
+
+  @@index([status, expiresAt])
+}
+
+model RecoveryClaim {
+  id          Int      @id @default(autoincrement())
+  foundItemId Int
+  lostItemId  Int
+  claimantId  Int
+  proof       String
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  foundItem FoundItem              @relation(fields: [foundItemId], references: [id], onDelete: Cascade)
+  lostItem  LostItem               @relation(fields: [lostItemId], references: [id], onDelete: Cascade)
+  claimant  User                   @relation("RecoveryClaimant", fields: [claimantId], references: [id], onDelete: Cascade)
+  events    RecoveryVerification[]
+}
+
+model RecoveryVerification {
+  id        Int      @id @default(autoincrement())
+  claimId   Int
+  actorId   Int
+  action    String
+  note      String?
+  createdAt DateTime @default(now())
+
+  claim RecoveryClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  actor User          @relation(fields: [actorId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id              Int       @id @default(autoincrement())
+  userId          Int
+  type            String    @default("GENERAL")
+  title           String
+  message         String
+  href            String
+  relatedItemId   Int?
+  relatedItemType String?
+  relatedClaimId  Int?
+  relatedMatchId  Int?
+  dedupeKey       String?
+  readAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, readAt, createdAt])
+}
+
+model Match {
+  id          Int      @id @default(autoincrement())
+  lostItemId  Int
+  foundItemId Int
+  matchScore  Float
+  imageScore  Float?
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+
+  lostItem  LostItem  @relation("LostItemMatches", fields: [lostItemId], references: [id], onDelete: Cascade)
+  foundItem FoundItem @relation("FoundItemMatches", fields: [foundItemId], references: [id], onDelete: Cascade)
+
+  messages Message[]
+
+  @@unique([lostItemId, foundItemId])
+}
+
+model Message {
+  id         Int      @id @default(autoincrement())
+  senderId   Int
+  receiverId Int
+  matchId    Int
+  message    String
+  createdAt  DateTime @default(now())
+
+  sender   User  @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User  @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  match    Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+}

@@ -1,0 +1,32 @@
+{
+  "name": "Lost & Found",
+  "short_name": "Lost & Found",
+  "description": "Find lost items and help return found items to their rightful owners.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5fcfe",
+  "theme_color": "#176546",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/icons/icon-192-v2.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512-v2.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512-v2.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
