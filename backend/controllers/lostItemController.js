@@ -1,5 +1,5 @@
-const { prisma } = require("../config/database");
-const { getReportExpiryDate } = require("../services/itemLifecycleService");
+const { prisma, retryDatabaseQuery } = require("../config/database");
+const { getReportExpiryDate } = require("../services/itemLifecycleRules");
 const { findMatchesForLostItem, findPotentialDuplicates } = require("../services/matchingService");
 const { parseCoordinatePair, parseNearbyFilter, filterItemsWithinRadius } = require("../services/geoService");
 
@@ -60,13 +60,28 @@ async function createLostItem(req, res) {
       },
     });
 
-    // Automatically check existing found items
-    const matches = await findMatchesForLostItem(lostItem.id);
-    const possibleDuplicates = await findPotentialDuplicates(lostItem, "lost");
+    // The report is already saved, so optional matching failures must not
+    // make the client treat the completed report as a failed submission.
+    let matches = [];
+    let possibleDuplicates = [];
+    const matchingWarnings = [];
+    try {
+      matches = await findMatchesForLostItem(lostItem.id);
+    } catch (error) {
+      console.error("Find matches for new lost item error:", error);
+      matchingWarnings.push("Automatic match search is temporarily unavailable.");
+    }
+    try {
+      possibleDuplicates = await findPotentialDuplicates(lostItem, "lost");
+    } catch (error) {
+      console.error("Find duplicate lost items error:", error);
+      matchingWarnings.push("Duplicate report checking is temporarily unavailable.");
+    }
 
     return res.status(201).json({
       success: true,
       message: "Lost item reported successfully",
+      ...(matchingWarnings.length && { warning: matchingWarnings.join(" ") }),
       item: lostItem,
       matches,
       possibleDuplicates,
@@ -88,7 +103,7 @@ async function getLostItems(req, res) {
       return res.status(400).json({ success: false, message: nearbyFilter.error });
     }
 
-    const items = await prisma.lostItem.findMany({
+    const items = await retryDatabaseQuery(() => prisma.lostItem.findMany({
       where: { status: "lost", expiresAt: { gt: new Date() } },
       include: {
         user: {
@@ -101,7 +116,7 @@ async function getLostItems(req, res) {
       orderBy: {
         createdAt: "desc",
       },
-    });
+    }));
     const resultItems = nearbyFilter.provided
       ? filterItemsWithinRadius(items, nearbyFilter.center, nearbyFilter.radiusKm)
       : items;

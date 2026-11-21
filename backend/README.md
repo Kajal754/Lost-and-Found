@@ -1,14 +1,16 @@
 # Backend setup
 
 1. Copy `.env.example` to `.env` and set `DATABASE_URL` and a strong `JWT_SECRET`.
-2. Run `npm install` to generate the Prisma client, then `npx prisma migrate deploy` to apply the database migrations.
-3. Start the API with `npm run dev`.
+2. Run `npm install` to generate the Prisma client. Apply migrations with `npx prisma migrate deploy` before local development.
+3. Start the API locally with `npm run dev`. Production starts with `npm start`, which applies pending migrations before launching the server.
 
 To enable the admin dashboard, set `ADMIN_EMAIL` to the registered admin account's email, then run `npm run promote-admin`. Sign out and sign in again so the app receives the updated role. Admin API access is checked against the database role.
 
 Email alerts are sent when SMTP settings (`MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, `MAIL_PASS`, and optionally `MAIL_FROM`) are configured. In-app notifications do not depend on SMTP.
 
-Realtime in-app notifications use authenticated Socket.IO connections and are also saved in PostgreSQL. Apply the `20261116100000_add_realtime_notification_fields` migration before restarting the API. The frontend connects to `NEXT_PUBLIC_SOCKET_URL`; the Next.js config defaults this to `BACKEND_URL` (or `http://localhost:5000` for local development). Set `NEXT_PUBLIC_SOCKET_URL` to the public backend origin when the frontend and API are deployed separately. Set `FRONTEND_URL` to the frontend's exact origin; multiple origins can be comma-separated. Local development allows `localhost` and `127.0.0.1` on ports 3000 and 3001.
+Realtime in-app notifications use authenticated Socket.IO connections and are also saved in PostgreSQL. The frontend connects to `NEXT_PUBLIC_SOCKET_URL`; it defaults to the backend origin in `NEXT_PUBLIC_API_URL` or `BACKEND_URL` (and to `http://localhost:5000` for local development). Set `NEXT_PUBLIC_SOCKET_URL` to the public backend origin only if it differs from the API URL. Set `FRONTEND_URL` to the frontend's exact origin; multiple origins can be comma-separated. Local development allows `localhost` and `127.0.0.1` on ports 3000 and 3001.
+
+For a Vercel deployment, set `NEXT_PUBLIC_API_URL` to the public API URL ending in `/api` and `NEXT_PUBLIC_SOCKET_URL` to the same public backend origin without `/api`. On the backend host, set `FRONTEND_URL` to the Vercel site's origin. Never use `localhost` for these production values; the visitor's browser interprets it as their own computer.
 
 Email notification preferences are configured in the user's profile. General notification email is enabled by default; message email is disabled by default and requires general email notifications to also be enabled.
 

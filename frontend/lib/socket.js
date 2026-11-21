@@ -4,28 +4,40 @@ import { getToken } from "./auth";
 let socket;
 
 function getSocketUrl() {
-  const configuredUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
-  if (configuredUrl) return configuredUrl.replace(/\/$/, "");
-
+  const isLocalBrowser = typeof window !== "undefined" &&
+    ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+  const candidates = [process.env.NEXT_PUBLIC_SOCKET_URL];
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   if (apiUrl && /^https?:\/\//i.test(apiUrl)) {
-    return apiUrl.replace(/\/api\/?$/, "").replace(/\/$/, "");
+    candidates.push(apiUrl.replace(/\/api\/?$/, ""));
   }
 
-  if (
-    typeof window !== "undefined" &&
-    ["localhost", "127.0.0.1"].includes(window.location.hostname)
-  ) {
-    return "http://localhost:5000";
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const candidateUrl = candidate.replace(/\/$/, "");
+    let isLoopback = false;
+    try {
+      isLoopback = ["localhost", "127.0.0.1", "::1"].includes(new URL(candidateUrl).hostname);
+    } catch {
+      continue;
+    }
+    if (!isLoopback || isLocalBrowser) return candidateUrl;
   }
-  return typeof window !== "undefined" ? window.location.origin : "http://localhost:5000";
+
+  if (isLocalBrowser || typeof window === "undefined") return "http://localhost:5000";
+  return null;
 }
 
 export function connectAppSocket() {
+  const socketUrl = getSocketUrl();
+  if (!socketUrl) return null;
+
   if (!socket) {
-    socket = io(getSocketUrl(), {
+    socket = io(socketUrl, {
       autoConnect: false,
       auth: { token: getToken() },
+      transports: ["websocket", "polling"],
+      tryAllTransports: true,
     });
   }
   socket.auth = { token: getToken() };

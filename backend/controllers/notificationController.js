@@ -92,6 +92,26 @@ async function markAllNotificationsRead(req, res) {
   }
 }
 
+async function markMatchNotificationsRead(req, res) {
+  try {
+    const result = await prisma.notification.updateMany({
+      where: { userId: req.user.id, type: "MATCH_FOUND", readAt: null },
+      data: { readAt: new Date() },
+    });
+    return res.json({
+      success: true,
+      message: "Match notifications marked as read",
+      updatedCount: result.count,
+    });
+  } catch (error) {
+    console.error("Mark match notifications read error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update match notifications",
+    });
+  }
+}
+
 async function deleteNotification(req, res) {
   try {
     const notificationId = Number(req.params.id);
@@ -126,5 +146,6 @@ module.exports = {
   getNotifications,
   markNotificationRead,
   markAllNotificationsRead,
+  markMatchNotificationsRead,
   deleteNotification,
 };

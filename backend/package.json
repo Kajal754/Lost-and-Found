@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@prisma/adapter-pg": "^6.19.3",
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
@@ -15,6 +16,7 @@
   },
   "scripts": {
     "postinstall": "prisma generate",
+    "prestart": "prisma migrate deploy",
     "dev": "nodemon server.js",
     "start": "node server.js",
     "promote-admin": "node scripts/promote-admin.js"

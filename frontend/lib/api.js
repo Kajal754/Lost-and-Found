@@ -119,8 +119,19 @@ export const api = {
 
   // LOST ITEMS
 
-  getLostItems: (nearbyOptions) =>
-    request(`/lost-items${nearbyQuery(nearbyOptions)}`),
+  getLostItems: async (nearbyOptions) => {
+    let lastError;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        return await request(`/lost-items${nearbyQuery(nearbyOptions)}`);
+      } catch (error) {
+        lastError = error;
+        if (error.status && error.status < 500) throw error;
+        if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
+      }
+    }
+    throw lastError;
+  },
 
   getMyLostItems: () =>
     request("/lost-items/mine"),
@@ -153,8 +164,19 @@ export const api = {
 
   // FOUND ITEMS
 
-  getFoundItems: (nearbyOptions) =>
-    request(`/found-items${nearbyQuery(nearbyOptions)}`),
+  getFoundItems: async (nearbyOptions) => {
+    let lastError;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        return await request(`/found-items${nearbyQuery(nearbyOptions)}`);
+      } catch (error) {
+        lastError = error;
+        if (error.status && error.status < 500) throw error;
+        if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
+      }
+    }
+    throw lastError;
+  },
 
   getMyFoundItems: () =>
     request("/found-items/mine"),
@@ -246,6 +268,9 @@ export const api = {
 
   markAllNotificationsRead: () =>
     request("/notifications/read-all", { method: "PATCH" }),
+
+  markMatchNotificationsRead: () =>
+    request("/notifications/read-matches", { method: "PATCH" }),
 
   deleteNotification: (id) =>
     request(`/notifications/${id}`, { method: "DELETE" }),

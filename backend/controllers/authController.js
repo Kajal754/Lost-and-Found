@@ -1,6 +1,6 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { prisma } = require("../config/database");
+const { prisma, retryDatabaseQuery } = require("../config/database");
 
 function generateToken(user) {
   return jwt.sign(
@@ -125,7 +125,7 @@ async function login(req, res) {
       }
     }
 
-    const user = await prisma.user.findFirst({
+    const user = await retryDatabaseQuery(() => prisma.user.findFirst({
       where: {
         OR: [
           { email: { equals: normalizedEmail, mode: "insensitive" } },
@@ -134,7 +134,7 @@ async function login(req, res) {
           })),
         ],
       },
-    });
+    }));
 
     if (!user) {
       return res.status(401).json({
@@ -174,9 +174,11 @@ async function login(req, res) {
   } catch (error) {
     console.error("Login error:", error);
 
-    return res.status(500).json({
+    return res.status(error.code === "P1001" || error.code === "P1002" || error.code === "P1017" || error.code === "P2024" ? 503 : 500).json({
       success: false,
-      message: "Login failed",
+      message: error.code === "P1001" || error.code === "P1002" || error.code === "P1017" || error.code === "P2024"
+        ? "Database is temporarily unavailable. Please try again shortly."
+        : "Login failed",
     });
   }
 }

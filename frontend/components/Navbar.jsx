@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   Moon,
@@ -33,6 +33,7 @@ import { connectAppSocket, disconnectAppSocket } from "../lib/socket";
 
 export default function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchRef = useRef(null);
   const liveNotificationEvents = useRef(new Map());
 
@@ -171,7 +172,7 @@ export default function Navbar() {
     const handleSocketConnect = () => setSocketError("");
     const handleSocketError = (connectionError) => {
       if (!active) return;
-      console.error("Notification socket connection error:", connectionError);
+      console.warn("Notification socket connection error:", connectionError.message);
       setSocketError("Live updates are reconnecting. Refresh this menu for the latest saved notifications.");
     };
     const handleNewNotification = (notification) => {
@@ -189,11 +190,16 @@ export default function Navbar() {
         setNotificationCount((current) => current + 1);
       }
     };
-    socket.on("connect", handleSocketConnect);
-    socket.on("connect_error", handleSocketError);
-    socket.on("notification:new", handleNewNotification);
+    socket?.on("connect", handleSocketConnect);
+    socket?.on("connect_error", handleSocketError);
+    socket?.on("notification:new", handleNewNotification);
 
-    api.getNotifications()
+    (async () => {
+      if (pathname === "/matches") {
+        await api.markMatchNotificationsRead();
+      }
+      return api.getNotifications();
+    })()
       .then((response) => {
         if (!active) return;
         applyNotificationSnapshot(response);
@@ -207,11 +213,11 @@ export default function Navbar() {
 
     return () => {
       active = false;
-      socket.off("connect", handleSocketConnect);
-      socket.off("connect_error", handleSocketError);
-      socket.off("notification:new", handleNewNotification);
+      socket?.off("connect", handleSocketConnect);
+      socket?.off("connect_error", handleSocketError);
+      socket?.off("notification:new", handleNewNotification);
     };
-  }, [user?.id, applyNotificationSnapshot]);
+  }, [user?.id, pathname, applyNotificationSnapshot]);
 
   /* ==========================================
      CLOSE SEARCH WHEN CLICKING OUTSIDE
@@ -332,6 +338,15 @@ export default function Navbar() {
     try {
       const response = await api.getNotifications();
       applyNotificationSnapshot(response);
+
+      const unseenMatchNotifications = (response.notifications || []).filter(
+        (notification) => notification.type === "MATCH_FOUND" && !notification.readAt
+      );
+      await Promise.all(
+        unseenMatchNotifications.map((notification) =>
+          markNotificationAsRead(notification)
+        )
+      );
     } catch (loadError) {
       console.error("Load notifications error:", loadError);
       setNotificationError(loadError.message || "Could not load notifications.");

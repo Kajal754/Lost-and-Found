@@ -75,6 +75,9 @@ export default function FoundItemPage() {
             <div className="w-full">
               <FoundItemForm
                 onSuccess={(result) => {
+                  if (result?.warning) {
+                    window.alert(result.warning);
+                  }
                   if (result?.possibleDuplicates?.length) {
                     window.alert(`We found ${result.possibleDuplicates.length} similar found report(s). Please review your items and matches.`);
                   }

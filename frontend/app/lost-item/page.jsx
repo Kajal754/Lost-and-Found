@@ -30,6 +30,9 @@ export default function LostItemPage() {
 
             <LostItemForm
               onSuccess={(result) => {
+                if (result?.warning) {
+                  window.alert(result.warning);
+                }
                 if (result?.possibleDuplicates?.length) {
                   window.alert(`We found ${result.possibleDuplicates.length} similar lost report(s). Please review your items and matches.`);
                 }

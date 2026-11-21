@@ -5,7 +5,7 @@ const http = require("http");
 
 dotenv.config();
 
-const { connectDatabase } = require("./config/database");
+const { prisma, connectDatabase, retryDatabaseQuery } = require("./config/database");
 const { processItemLifecycle } = require("./services/itemLifecycleService");
 const { initializeSocketServer } = require("./services/socketService");
 
@@ -51,11 +51,14 @@ app.get("/", (req, res) => {
   });
 });
 
-app.get("/api/health", (req, res) => {
-  res.json({
-    success: true,
-    message: "Backend is connected successfully",
-  });
+app.get("/api/health", async (req, res) => {
+  try {
+    await retryDatabaseQuery(() => prisma.$queryRaw`SELECT 1`);
+    return res.json({ success: true, message: "Backend and database are connected" });
+  } catch (error) {
+    console.error("Health check database error:", error.code || error.message);
+    return res.status(503).json({ success: false, message: "Database is temporarily unavailable" });
+  }
 });
 
 // API routes

@@ -1,4 +1,4 @@
-const CACHE_NAME = "lost-and-found-v3";
+const CACHE_NAME = "lost-and-found-v4";
 
 const STATIC_ASSETS = [
   "/",
@@ -51,25 +51,23 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        if (
-          response &&
-          response.status === 200 &&
-          response.type === "basic"
-        ) {
-          const responseClone = response.clone();
+  event.respondWith((async () => {
+    try {
+      const response = await fetch(request);
+      if (response?.status === 200 && response.type === "basic") {
+        const responseClone = response.clone();
+        void caches.open(CACHE_NAME)
+          .then((cache) => cache.put(request, responseClone))
+          .catch(() => {});
+      }
+      return response;
+    } catch {
+      try {
+        const cachedResponse = await caches.match(request);
+        if (cachedResponse) return cachedResponse;
+      } catch {}
 
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseClone);
-          });
-        }
-
-        return response;
-      })
-      .catch(() => {
-        return caches.match(request);
-      })
-  );
+      return new Response("", { status: 503, statusText: "Offline" });
+    }
+  })());
 });

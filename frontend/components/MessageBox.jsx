@@ -45,6 +45,7 @@ export default function MessageBox({
   useEffect(() => {
     if (!matchId) return undefined;
     const socket = connectAppSocket();
+    if (!socket) return undefined;
     const joinConversation = () => {
       socket.emit("conversation:join", { matchId: Number(matchId) });
     };
